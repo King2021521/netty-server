@@ -1,14 +1,20 @@
 package com.zxm.me.core;
 
-import com.zxm.me.mongo.Node;
+import com.zxm.me.handler.Message;
+import com.zxm.me.handler.Node;
+import com.zxm.me.handler.cassandra.CassandraClusterConnector;
+import com.zxm.me.handler.cassandra.MessageTemplate;
+import com.zxm.me.handler.cassandra.SessionFactory;
 import com.zxm.me.support.MessageHandler;
 import com.zxm.me.support.NettyChannelMapping;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelId;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * @Author zxm
@@ -16,6 +22,12 @@ import java.util.Set;
  * @Date Create in 下午 3:43 2018/9/20 0020
  */
 public class EventDispatcher extends AbstractDispatcher implements Dispatcher{
+    private MessageTemplate messageTemplate;
+
+    public EventDispatcher() {
+        this.messageTemplate = new MessageTemplate(SessionFactory.getInstance());
+    }
+
     /**
      * 异步push消息到客户端
      *
@@ -25,6 +37,21 @@ public class EventDispatcher extends AbstractDispatcher implements Dispatcher{
         threadPool.submit(() -> {
             send(userName,msg);
         });
+    }
+
+    /**
+     * 持久化消息
+     * @param channel
+     * @param msg
+     */
+    public void save(Channel channel, String msg){
+        Message message = new Message();
+        message.setId(UUID.randomUUID().toString().replace("-",""));
+        message.setContent(msg);
+        message.setFromAddress(channel.remoteAddress().toString().replace("/",""));
+        message.setSender(NettyChannelMapping.getUserName(channel.id()));
+        message.setCreateTime(new Date());
+        messageTemplate.insert(message);
     }
 
     /**

@@ -10,6 +10,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * @Author zxm
@@ -17,7 +19,7 @@ import org.apache.commons.logging.LogFactory;
  * @Date Create in 下午 2:37 2018/6/15 0015
  */
 public class NettyServerReadHandler extends SimpleChannelInboundHandler<String> {
-    private static final Log log = LogFactory.getLog(NettyServerReadHandler.class);
+    Logger log = LoggerFactory.getLogger(NettyServerReadHandler.class);
 
     private EventDispatcher eventDispatcher;
     private LoginDispatcher loginDispatcher;
@@ -38,6 +40,7 @@ public class NettyServerReadHandler extends SimpleChannelInboundHandler<String> 
         String type = header.getString(MessageHandler.MESSAGE_TYPE);
         if(MessageHandler.MESSAGE.equals(type)){
             eventDispatcher.process(loginDispatcher.getUser(channel),payload.getString(MessageHandler.BODY));
+            eventDispatcher.save(channel,payload.getString(MessageHandler.BODY));
             return;
         }
         loginDispatcher.addUser(channel,payload.getString(MessageHandler.BODY));
@@ -64,6 +67,6 @@ public class NettyServerReadHandler extends SimpleChannelInboundHandler<String> 
         super.channelInactive(ctx);
         log.warn("client " + ctx.channel().remoteAddress() + " interrupted");
         eventDispatcher.process("系统", "系统提示：[" + loginDispatcher.getUser(ctx.channel()) + "]掉线了");
-        NettyChannelMapping.remove(ctx.channel().id());
+        loginDispatcher.removeUser(ctx.channel().id());
     }
 }

@@ -1,8 +1,12 @@
 package com.zxm.me.core;
 
-import com.zxm.me.mongo.Node;
+import com.zxm.me.handler.Node;
+import com.zxm.me.handler.cassandra.CassandraClusterConnector;
+import com.zxm.me.handler.cassandra.ChannelTemplate;
+import com.zxm.me.handler.cassandra.SessionFactory;
 import com.zxm.me.support.NettyChannelMapping;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelId;
 
 import java.util.Date;
 
@@ -12,8 +16,15 @@ import java.util.Date;
  * @Date Create in 下午 3:58 2018/9/20 0020
  */
 public class LoginDispatcher extends AbstractDispatcher implements Dispatcher {
+    private ChannelTemplate channelTemplate;
+
+    public LoginDispatcher() {
+        channelTemplate = new ChannelTemplate(SessionFactory.getInstance());
+    }
+
     /**
      * 获取用户名
+     *
      * @param channel
      * @return
      */
@@ -25,8 +36,8 @@ public class LoginDispatcher extends AbstractDispatcher implements Dispatcher {
         return userName;
     }
 
-    public void addUser(Channel channel, String userName){
-        Node node = new Node();
+    public void addUser(Channel channel, String userName) {
+        final Node node = new Node();
         node.setChannelId(channel.id());
         node.setUserName(userName);
         node.setChannel(channel);
@@ -34,5 +45,12 @@ public class LoginDispatcher extends AbstractDispatcher implements Dispatcher {
         node.setInitTime(new Date());
 
         NettyChannelMapping.add(channel.id(), node);
+
+        threadPool.submit(()->channelTemplate.insert(node));
+    }
+
+    public void removeUser(ChannelId id) {
+        NettyChannelMapping.remove(id);
+        threadPool.submit(()->channelTemplate.delete(id));
     }
 }
